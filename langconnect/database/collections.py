@@ -112,7 +112,12 @@ async def delete_pgvector_collection(
     """Deletes a collection using PGVector.
     PGVector.delete_collection is synchronous, so run in executor.
     """
-    store = get_vectorstore(collection_name)
+    metadata = {}
+    metadata["owner_id"] = user.identity
+    # Write current time in ISO-8601 formatted style to created_at
+    metadata["created_at"] = datetime.now(UTC).isoformat()
+
+    store = get_vectorstore(collection_name, collection_metadata=metadata)
     await asyncio.to_thread(store.delete_collection)
 
 

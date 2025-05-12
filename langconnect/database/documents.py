@@ -2,10 +2,12 @@ import json
 import logging
 import uuid
 from typing import Any, Optional
+from datetime import UTC, datetime
 
 import asyncpg
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
+from langconnect.auth import AuthenticatedUser
 
 from langconnect.database.connection import (
     get_db_connection,
@@ -20,11 +22,19 @@ def add_documents_to_vectorstore(
     collection_name: str,
     documents: list[Document],
     embeddings: Embeddings = DEFAULT_EMBEDDINGS,
+    user: AuthenticatedUser | None = None,
 ) -> list[str]:
     """Adds LangChain documents to the specified PGVector collection."""
+
+    metadata = {}
+    metadata["owner_id"] = user.identity
+    # Write current time in ISO-8601 formatted style to created_at
+    metadata["created_at"] = datetime.now(UTC).isoformat()
+
     store = get_vectorstore(
         collection_name=collection_name,
         embeddings=embeddings,
+        collection_metadata=metadata,
     )
     added_ids = store.add_documents(documents, ids=None)  # Let PGVector generate IDs
     return added_ids
@@ -207,11 +217,20 @@ def search_documents_in_vectorstore(
     query: str,
     limit: int = 4,
     embeddings: Embeddings = DEFAULT_EMBEDDINGS,
+    user: AuthenticatedUser | None = None,
 ) -> list[dict[str, Any]]:
     """Performs semantic similarity search within the specified PGVector collection."""
+
+    metadata = {}
+    if user:
+        metadata["owner_id"] = user.identity
+    # Write current time in ISO-8601 formatted style to created_at
+    metadata["created_at"] = datetime.now(UTC).isoformat()
+
     store = get_vectorstore(
         collection_name=collection_name,
         embeddings=embeddings,
+        collection_metadata=metadata,
     )
 
     results_with_scores = store.similarity_search_with_score(query, k=limit)

@@ -86,6 +86,7 @@ async def collections_get(
 
 @router.delete("/{collection_name}", status_code=status.HTTP_204_NO_CONTENT)
 async def collections_delete(
+    user: Annotated[AuthenticatedUser, Depends(resolve_user)],
     collection_name: str,
 ):
     """Deletes a specific PGVector collection by name."""
@@ -97,7 +98,7 @@ async def collections_delete(
                 detail=f"Collection '{collection_name}' not found",
             )
 
-        await delete_pgvector_collection(collection_name)
+        await delete_pgvector_collection(user, collection_name)
         return
     except Exception as e:
         raise HTTPException(
