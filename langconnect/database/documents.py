@@ -58,7 +58,7 @@ async def list_documents_in_vectorstore(
             # Get collection with owner check
             collection_query = """
             SELECT uuid FROM langchain_pg_collection 
-            WHERE name = $1 AND (cmetadata->>'user_id' = $2 OR cmetadata->>'owner_id' = $2)
+            WHERE name = $1 AND cmetadata->>'owner_id' = $2
             """
             collection_record = await conn.fetchrow(
                 collection_query,
@@ -148,7 +148,7 @@ async def get_document_from_vectorstore(
                 SELECT e.uuid, e.document, e.cmetadata 
                 FROM langchain_pg_embedding e
                 JOIN langchain_pg_collection c ON e.collection_id = c.uuid
-                WHERE e.uuid = $1 AND (c.cmetadata->>'user_id' = $2 OR c.cmetadata->>'owner_id' = $2)
+                WHERE e.uuid = $1 AND c.cmetadata->>'owner_id' = $2
             """
             record = await conn.fetchrow(
                 query, doc_uuid, user.identity if user else None
@@ -189,7 +189,7 @@ async def delete_documents_from_vectorstore(
             # 1. Get collection UUID with owner check
             collection_query = """
             SELECT uuid FROM langchain_pg_collection 
-            WHERE name = $1 AND (cmetadata->>'user_id' = $2 OR cmetadata->>'owner_id' = $2)
+            WHERE name = $1 AND cmetadata->>'owner_id' = $2
             """
             collection_record = await conn.fetchrow(
                 collection_query,

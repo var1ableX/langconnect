@@ -39,14 +39,14 @@ async def create_pgvector_collection(
 async def list_pgvector_collections(user: AuthenticatedUser) -> list[dict[str, Any]]:
     """Lists all collections directly from the langchain_pg_collection table.
 
-    Filters collections by matching the user_id in the cmetadata JSONB field with the authenticated user's identity.
+    Filters collections by matching the usowner_ider_id in the cmetadata JSONB field with the authenticated user's identity.
     """
     collections = []
     async with get_db_connection() as conn:
         query = """
             SELECT uuid, name, cmetadata
             FROM langchain_pg_collection 
-            WHERE cmetadata->>'user_id' = $1 OR cmetadata->>'owner_id' = $1
+            WHERE cmetadata->>'owner_id' = $1
             ORDER BY name;
         """
         records = await conn.fetch(query, user.identity)
@@ -83,14 +83,13 @@ async def get_pgvector_collection_details(
 ) -> dict[str, Any] | None:
     """Gets collection details (uuid, name, metadata) from the langchain_pg_collection table.
 
-    Filters collections by matching the user_id in the cmetadata JSONB field with the authenticated user's identity.
+    Filters collections by matching the owner_id in the cmetadata JSONB field with the authenticated user's identity.
     """
     async with get_db_connection() as conn:
         query = """
             SELECT uuid, name, cmetadata 
             FROM langchain_pg_collection 
-            WHERE name = $1 AND 
-                  (cmetadata->>'user_id' = $2 OR cmetadata->>'owner_id' = $2);
+            WHERE name = $1 AND cmetadata->>'owner_id' = $2;
         """
         record = await conn.fetchrow(query, collection_name, user.identity)
         if record:
