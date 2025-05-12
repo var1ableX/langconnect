@@ -6,6 +6,7 @@ from typing import Any
 
 from langconnect.auth import AuthenticatedUser
 from langconnect.database.connection import get_db_connection, get_vectorstore
+from langconnect.database.utils import assert_collection_owner
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +37,19 @@ async def create_pgvector_collection(
 
 
 async def list_pgvector_collections(user: AuthenticatedUser) -> list[dict[str, Any]]:
-    """Lists all collections directly from the langchain_pg_collection table."""
+    """Lists all collections directly from the langchain_pg_collection table.
+
+    Filters collections by matching the user_id in the cmetadata JSONB field with the authenticated user's identity.
+    """
     collections = []
     async with get_db_connection() as conn:
         query = """
             SELECT uuid, name, cmetadata
             FROM langchain_pg_collection 
+            WHERE cmetadata->>'user_id' = $1 OR cmetadata->>'owner_id' = $1
             ORDER BY name;
         """
-        records = await conn.fetch(query)
+        records = await conn.fetch(query, user.identity)
         for record in records:
             # Handle cmetadata - it can be None, a string 'null', or a JSON string
             metadata = {}
@@ -76,12 +81,18 @@ async def get_pgvector_collection_details(
     user: AuthenticatedUser,
     collection_name: str,
 ) -> dict[str, Any] | None:
-    """Gets collection details (uuid, name, metadata) from the langchain_pg_collection table."""
+    """Gets collection details (uuid, name, metadata) from the langchain_pg_collection table.
+
+    Filters collections by matching the user_id in the cmetadata JSONB field with the authenticated user's identity.
+    """
     async with get_db_connection() as conn:
         query = """
-            SELECT uuid, name, cmetadata FROM langchain_pg_collection WHERE name = $1;
+            SELECT uuid, name, cmetadata 
+            FROM langchain_pg_collection 
+            WHERE name = $1 AND 
+                  (cmetadata->>'user_id' = $2 OR cmetadata->>'owner_id' = $2);
         """
-        record = await conn.fetchrow(query, collection_name)
+        record = await conn.fetchrow(query, collection_name, user.identity)
         if record:
             # Handle cmetadata - it can be None, a string 'null', or a JSON string
             metadata = {}
@@ -112,12 +123,10 @@ async def delete_pgvector_collection(
     """Deletes a collection using PGVector.
     PGVector.delete_collection is synchronous, so run in executor.
     """
-    metadata = {}
-    metadata["owner_id"] = user.identity
-    # Write current time in ISO-8601 formatted style to created_at
-    metadata["created_at"] = datetime.now(UTC).isoformat()
+    store = get_vectorstore(collection_name)
 
-    store = get_vectorstore(collection_name, collection_metadata=metadata)
+    assert_collection_owner(store, user)
+
     await asyncio.to_thread(store.delete_collection)
 
 

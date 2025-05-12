@@ -1,8 +1,8 @@
 import logging
-
-from langconnect.database.connection import get_vectorstore
-from langconnect.auth import AuthenticatedUser
 from datetime import UTC, datetime
+
+from langconnect.auth import AuthenticatedUser
+from langconnect.database.connection import get_vectorstore
 
 logger = logging.getLogger(__name__)
 

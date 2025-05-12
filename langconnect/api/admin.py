@@ -1,9 +1,9 @@
 import logging
-
-from fastapi import APIRouter, HTTPException, status, Depends
-from langconnect.auth import AuthenticatedUser, resolve_user
 from typing import Annotated
 
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from langconnect.auth import AuthenticatedUser, resolve_user
 from langconnect.database.init_db import initialize_database
 
 logger = logging.getLogger(__name__)

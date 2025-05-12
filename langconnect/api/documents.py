@@ -1,10 +1,10 @@
 import json
 import logging
-from typing import Any
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, Depends
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from langchain_core.documents import Document
+
 from langconnect.auth import AuthenticatedUser, resolve_user
 from langconnect.database import (
     add_documents_to_vectorstore,
@@ -30,7 +30,7 @@ async def documents_create(
 ):
     """Processes and indexes (adds) new document files with optional metadata."""
     try:
-        collection = await get_pgvector_collection_details(collection_name)
+        collection = await get_pgvector_collection_details(user, collection_name)
         if not collection:
             raise HTTPException(status_code=404, detail="Collection not found")
     except Exception as e:
@@ -101,7 +101,9 @@ async def documents_create(
     # but maybe inform the user about the failures.
 
     try:
-        added_ids = add_documents_to_vectorstore(collection_name, all_langchain_docs, user=user)
+        added_ids = add_documents_to_vectorstore(
+            collection_name, all_langchain_docs, user=user
+        )
         if not added_ids:
             # This might indicate a problem with the vector store itself
             raise HTTPException(
