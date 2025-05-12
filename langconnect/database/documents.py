@@ -31,7 +31,6 @@ def add_documents_to_vectorstore(
     )
 
     assert_collection_owner(store, user)
-
     added_ids = store.add_documents(documents, ids=None)  # Let PGVector generate IDs
     return added_ids
 
@@ -113,7 +112,8 @@ async def list_documents_in_vectorstore(
                 )
     except asyncpg.exceptions.UndefinedTableError:
         logger.info(
-            f"Warning: Table langchain_pg_embedding or langchain_pg_collection not found for collection '{collection_name}'. Returning empty list."
+            f"Table langchain_pg_embedding or langchain_pg_collection "
+            f"not found for collection '{collection_name}'. Returning empty list."
         )
         return []
     except Exception as e:
@@ -167,9 +167,9 @@ async def get_document_from_vectorstore(
 
 
 async def delete_documents_from_vectorstore(
+    user: AuthenticatedUser,
     collection_name: str,
     file_ids: list[str],
-    user: AuthenticatedUser = None,
 ) -> bool:
     """Deletes all document chunks associated with the given file_ids
     from the specified PGVector collection using direct SQL.
@@ -177,13 +177,8 @@ async def delete_documents_from_vectorstore(
 
     Only deletes documents from collections owned by the authenticated user.
     """
-    if user is None:
-        raise ValueError("User must be provided")
-
     if not file_ids:
         return True  # Nothing to delete
-
-    deleted_count = 0
     try:
         async with get_db_connection() as conn:
             # 1. Get collection UUID with owner check
@@ -222,36 +217,38 @@ async def delete_documents_from_vectorstore(
             try:
                 deleted_count = int(result.split()[-1])
                 logger.info(
-                    f"Deleted {deleted_count} chunks for file_ids {file_ids} in collection '{collection_name}'."
+                    f"Deleted {deleted_count} chunks for file_ids {file_ids} in "
+                    f"collection '{collection_name}'."
                 )
             except (IndexError, ValueError):
                 # Handle cases where the result string might be unexpected
                 logger.info(
-                    f"Deletion executed for file_ids {file_ids} in collection '{collection_name}', but count parsing failed. Result: {result}"
+                    f"Deletion executed for file_ids {file_ids} in "
+                    f"collection '{collection_name}', but count parsing "
+                    f"failed. Result: {result}"
                 )
-                # Consider success if execute didn't raise an error
-                deleted_count = -1  # Indicate count unknown
-
             return True  # Indicate success
 
     except asyncpg.exceptions.UndefinedTableError:
         logger.info(
-            f"Warning: Table langchain_pg_embedding or langchain_pg_collection not found for deletion in collection '{collection_name}'."
+            f"Warning: Table langchain_pg_embedding or langchain_pg_collection not "
+            f"found for deletion in collection '{collection_name}'."
         )
         return False
     except Exception as e:
         logger.info(
-            f"Error deleting documents by file_ids {file_ids} from collection {collection_name}: {e}"
+            f"Error deleting documents by file_ids {file_ids} "
+            f"from collection {collection_name}: {e}"
         )
         return False
 
 
 def search_documents_in_vectorstore(
+    user: AuthenticatedUser,
     collection_name: str,
     query: str,
     limit: int = 4,
     embeddings: Embeddings = DEFAULT_EMBEDDINGS,
-    user: AuthenticatedUser | None = None,
 ) -> list[dict[str, Any]]:
     """Performs semantic similarity search within the specified PGVector collection."""
     store = get_vectorstore(
@@ -260,7 +257,6 @@ def search_documents_in_vectorstore(
     )
 
     assert_collection_owner(store, user)
-
     results_with_scores = store.similarity_search_with_score(query, k=limit)
 
     formatted_results = []
@@ -275,14 +271,3 @@ def search_documents_in_vectorstore(
             }
         )
     return formatted_results
-
-
-def record_to_dict(record) -> Optional[dict[str, Any]]:
-    """Converts an asyncpg Record to a dictionary (useful for direct DB access)."""
-    if record is None:
-        return None
-    return {
-        key: (str(value) if isinstance(value, uuid.UUID) else value)
-        for key, value in record.items()
-        if key != "embedding"
-    }

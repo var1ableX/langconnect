@@ -176,18 +176,18 @@ async def documents_delete(
     "/collections/{collection_name}/documents/search", response_model=list[SearchResult]
 )
 def documents_search(
+    user: Annotated[AuthenticatedUser, Depends(resolve_user)],
     collection_name: str,
     search_query: SearchQuery,
-    user: Annotated[AuthenticatedUser, Depends(resolve_user)],
 ):
     """Performs semantic search for documents within a specific collection."""
     if not search_query.query:
         raise HTTPException(status_code=400, detail="Search query cannot be empty")
 
     results = search_documents_in_vectorstore(
+        user,
         collection_name,
         query=search_query.query,
         limit=search_query.limit or 10,
-        user=user,
     )
     return results
